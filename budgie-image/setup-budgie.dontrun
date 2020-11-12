@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+sudo apt purge -y gnome-shell gdm3 
+
+sudo apt purge -y network-manager-config-connectivity-ubuntu gnome-initial-setup ubuntu-report eog gnome-terminal nautilus xdg-desktop-portal-gtk apt-config-icons-hidpi gamemode seahorse yaru-theme-gnome-shell yaru-theme-gtk yaru-theme-icon yaru-theme-sound ubuntu-wallpapers gnome-session-canberra ubuntu-settings gsettings-ubuntu-schemas xcursor-themes realmd adcli gnome-getting-started-docs shotwell remmina totem thunderbird deja-dup
+
+sudo apt -y autoremove
+
+sudo apt install -y ubuntu-budgie-desktop
+sudo apt-get -y install --no-install-recommends oem-config-slideshow-ubuntu-budgie
+sed -i 's/oem-config-slideshow-ubuntu/oem-config-slideshow-ubuntu-budgie/' /usr/lib/ubiquity/plugins/ubi-usersetup.py
+sed -i 's/oem-config-slideshow-ubuntu/oem-config-slideshow-ubuntu-budgie/' /usr/sbin/oem-config-remove-gtk
+sed -i 's/ubiquity-slideshow-ubuntu/ubiquity-slideshow-ubuntu-budgie/' /usr/sbin/oem-config-remove-gtk
+
+sudo rm /usr/bin/setup-budgie.sh
+sudo echo -n "" > /etc/resolv.conf
+
