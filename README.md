@@ -20,6 +20,9 @@ This script will:
 - Compress the image back to .xz
 
 The script executed on the Pi image via chroot will:
+- download the ubuntu-budgie-welcome snap and move the files to the snap seed directory
+- modify the snap seed.yaml / modify snapd.seeded.service / erase state.json
+- (these modifications will trigger the snaps to re-seed on first reboot after install)
 - remove gnome-shell and gdm3
 - remove other packages not part of Ubuntu Budgie
 - install Ubuntu Budgie
