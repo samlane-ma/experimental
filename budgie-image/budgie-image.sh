@@ -38,5 +38,6 @@ mount --rbind /dev dev/
 chroot $MOUNT /usr/bin/setup-budgie.sh
 rm $MOUNT/usr/bin/qemu-arm-static
 cd $CURRENT_DIR
-sudo -u $SUDO_USER xz -v $IMAGE
+# Next line commented because it takes a long time to recompress
+# sudo -u $SUDO_USER xz -v $IMAGE
 
