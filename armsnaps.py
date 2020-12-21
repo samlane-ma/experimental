@@ -4,12 +4,13 @@ import json
 import os
 
 snaplist = ['ubuntu-budgie-welcome','core18','snapd']
-snaps = []
+snap_revs = []
 arch = 'arm64'
 name = 'stable'
 
-print("Checking snap " + arch + "/" + name + " revisions:")
+print("Checking snap {}/{} revisions:".format(arch,name))
 for snap in snaplist:
+    revision = "unavailable"
     os.system("curl -o snap.json -H 'Snap-Device-Series: 16' http://api.snapcraft.io/v2/snaps/info/" + snap + " > /dev/null 2>&1")
     with open("snap.json", "r") as file:
         key = file.read()
@@ -17,7 +18,8 @@ for snap in snaplist:
     y = json.loads(key)
     for j in y['channel-map']:
         if j['channel']['architecture'] == arch and j['channel']['name'] == name:
-            snaps.append("Current {} {}/{} revision: {}_{}".format(snap,arch,name,snap,j['revision']))
+            revision = "{}_{}".format(snap,j['revision'])
+    snap_revs.append(revision)
 
-for each in snaps:
-    print(each)
+for i in range(len(snaplist)):
+    print("Current {} {}/{} revision: {}".format(snaplist[i],arch,name,snap_revs[i]))
