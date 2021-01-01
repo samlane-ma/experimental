@@ -14,6 +14,7 @@ class FindMyPIServer:
         self.host = socket.gethostname()
         self.model = self._get_model()
         self.ip = self.get_ip()
+        self.run = True
         
     def update_ip(self):
         self.ip = self.get_ip()
@@ -55,9 +56,10 @@ class FindMyPIServer:
         except OSError:
             print("Socket could not be opened")
         else:
+            print("FindMyPI server started")
             self.input = [self.udp]
-            while True:
-                inputready,outputready,exceptready = select(self.input,[],[],1)
+            while self.run:
+                inputready,outputready,exceptready = select(self.input,[],[],2)
                 for s in inputready:
                     if s == self.udp:
                         data,addr = s.recvfrom(4096)
@@ -73,6 +75,4 @@ if __name__=="__main__":
     findmypiserver = FindMyPIServer(8888)
     findmypiserver.start_server()
 
-
-        
 
