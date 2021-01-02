@@ -76,52 +76,50 @@ class FindMyPIClient:
             p.join()
         return results
 
-def search(listmodel,findmypi,freq):
+def search(pi_liststore,findmypi,freq):
     while True:
         pi_list = []
         found = findmypi.look_for_pi()
         while not found.empty():
             match = found.get().split(',')
             pi_list.append(match)
-        GLib.idle_add(update_list,listmodel,pi_list)
+        GLib.idle_add(update_list,pi_liststore,pi_list)
         time.sleep(freq)
 
-def update_list(listmodel,pi_list):
-    # search liststore, add missing PIs to list
-    for pi in pi_list:
-        iter_child = listmodel.get_iter_first()
-        tree_path = None
-        in_list = False
-        while iter_child:
-            if listmodel.get_value(iter_child, 0) == pi[0]:
-                in_list = True
-            iter_child = listmodel.iter_next(iter_child)
-        if not in_list:
-            listmodel.append(pi)
-
-    # search liststore, remove PIs that are no longer present
-    iter_child = listmodel.get_iter_first()
+def update_list(pi_liststore,pi_list):
+    to_remove = []
+    # Search liststore, generate list of iterations to be removed
+    # Also removes existing PIs from the list of PIs to add
+    iter_child = pi_liststore.get_iter_first()
     tree_path = None
     while iter_child:
         in_list = False
-        ip = listmodel.get_value(iter_child, 0)
+        ip = pi_liststore.get_value(iter_child, 0)
         for pi in pi_list:
             if pi[0] == ip:
                 in_list = True
+                pi_list.remove(pi)
         if not in_list:
-            listmodel.remove(iter_child)
-        iter_child = listmodel.iter_next(iter_child)
+            to_remove.append(iter_child)
+        iter_child = pi_liststore.iter_next(iter_child)
 
+    for child in to_remove:
+         pi_liststore.remove(child)
+
+    # Adds missing PIs to liststore
+    for pi in pi_list:
+        pi_liststore.append(pi)
+            
 def on_refresh_clicked(button):
     pi_list = []
     found = findmypi.look_for_pi()
     while not found.empty():
         match = found.get().split(',')
         pi_list.append(match)
-    GLib.idle_add(update_list,listmodel,pi_list)
+    GLib.idle_add(update_list,pi_liststore,pi_list)
 
 def on_copyip_clicked(button):
-    ip = get_value_at_col(view,0)
+    ip = get_value_at_col(pi_treeview,0)
     if ip != "":
         clipboard.set_text(ip,-1)
 
@@ -146,13 +144,15 @@ if __name__=="__main__":
     clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 
     window = Gtk.Window()
+    window.set_title("Find My PI")
     vbox = Gtk.VBox()
     window.add(vbox)
     window.set_border_width(10)
     window.connect("destroy",on_window_destroy)
-    listmodel = Gtk.ListStore(str, str, str)
-    view = Gtk.TreeView(model=listmodel)
-    view.set_size_request(290,150)
+
+    pi_liststore = Gtk.ListStore(str, str, str)
+    pi_treeview = Gtk.TreeView(model=pi_liststore)
+    pi_treeview.set_size_request(290,150)
     for i, field in enumerate(fields):
         cell = Gtk.CellRendererText()
         if i == 0:
@@ -164,20 +164,23 @@ if __name__=="__main__":
             col.set_min_width(300)
         else:
             col.set_min_width(130)
-        view.append_column(col)
-    vbox.add(view)
-    button = Gtk.Button(label="Refresh")
-    button.connect("clicked",on_refresh_clicked)
+        pi_treeview.append_column(col)
+    vbox.add(pi_treeview)
+
+    button_refresh = Gtk.Button(label="Refresh")
+    button_refresh.connect("clicked",on_refresh_clicked)
+
     button_copy = Gtk.Button(label="Copy IP")
     button_copy.connect("clicked",on_copyip_clicked)
 
-    grid = Gtk.Grid()
-    grid.attach(button,0,0,1,1)
-    grid.attach(button_copy,1,0,1,1)
-    vbox.add(grid)
+    bottom_grid = Gtk.Grid()
+    bottom_grid.attach(button_refresh,0,0,1,1)
+    bottom_grid.attach(button_copy,1,0,1,1)
+    vbox.add(bottom_grid)
+
     window.show_all()
 
-    thread = threading.Thread(target=search, args=(listmodel, findmypi, frequency),
+    thread = threading.Thread(target=search, args=(pi_liststore, findmypi, frequency),
                               daemon=True)
     thread.start()
 
