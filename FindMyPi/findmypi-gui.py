@@ -82,7 +82,10 @@ def search(pi_liststore,findmypi,freq):
         found = findmypi.look_for_pi()
         while not found.empty():
             match = found.get().split(',')
-            pi_list.append(match)
+            # if a machine answers twice (ie. if it's on wifi and ethernet)
+            # only add the ip once (unlikely, but possible)
+            if not match in pi_list:
+                pi_list.append(match)
         GLib.idle_add(update_list,pi_liststore,pi_list)
         time.sleep(freq)
 
@@ -115,7 +118,10 @@ def on_refresh_clicked(button):
     found = findmypi.look_for_pi()
     while not found.empty():
         match = found.get().split(',')
-        pi_list.append(match)
+        # if a machine answers twice (ie. if it's on wifi and ethernet)
+        # only add the ip once (unlikely, but possible)
+        if not match in pi_list:
+            pi_list.append(match)
     GLib.idle_add(update_list,pi_liststore,pi_list)
 
 def on_copyip_clicked(button):
