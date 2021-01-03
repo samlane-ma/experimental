@@ -20,7 +20,6 @@ def on_window_destroy(*args):
 if __name__=="__main__":
 
     pi_treeview = FindMyPITreeView(8888)
-
     window = Gtk.Window()
     window.set_title("Find My PI")
     window.set_border_width(10)

@@ -44,18 +44,24 @@ class FindMyPIClient:
                 msgdata = response[0].decode("utf-8")
                 sender=(response[1][0])
                 msg = "{},{}".format(sender,msgdata)
-                # if local machine is running on a PI with server active,
-                # only don't add the localhost ip if there is a real IP 
+                # If local machine is running on a PI with server active,
+                # don't add the localhost ip if there is a real IP also.
                 if sender == "127.0.0.1":
                     if self.ip_prefix == "127.0.0.":
+                        # If you are not connected to a network and you are
+                        # scanning your own IP (why?), it's ok to add it
                         results.put(msg)
+                    else:
+                       # If 127.0.0.1 returns a result but have a real network
+                       # IP also, do nothing for 127.0.0.1
+                       pass
                 else:
                     results.put(msg)
             except (socket.timeout, OSError) as e:
                 pass
         sock.close()
 
-    def _look_for_pi(self):
+    def get_list(self):
         # Starts 'max_threads' number of threads to search for PIs
         self.ip_prefix = self._get_ip_prefix()
         ip_queue = queue.Queue()
@@ -78,14 +84,9 @@ class FindMyPIClient:
             p.start()
         for p in pool:
             p.join()
-        return results
-
-    def get_list(self):
-        # Returns a list of all the PIs found
         pi_list = []
-        found = self._look_for_pi()
-        while not found.empty():
-            match = found.get().split(',')
+        while not results.empty():
+            match = results.get().split(',')
             # if a machine answers twice (ie. if it's on wifi and ethernet)
             # only add the ip once (unlikely, but possible)
             if not match in pi_list:
