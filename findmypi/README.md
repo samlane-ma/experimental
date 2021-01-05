@@ -2,7 +2,7 @@
 
 Server method requires findmypi-server.py running on the PI
 
-Mac method requires arp and nmap installed on the local machine
+Mac address method requires arp and nmap installed on the local machine
 
 - findmypi.py:
 
