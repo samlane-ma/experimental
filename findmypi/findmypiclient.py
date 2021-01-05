@@ -14,8 +14,8 @@ class FindMyPIClient:
 
     def __init__(self, port=8888):
         self.ip_prefix = self._get_ip_prefix()
-        self.max_threads = 255  # max number of threads to scan network
-        self.timeout = 1        # how many seconds to wait for each ip
+        self.max_threads = 255  # UDP - max number of threads to scan network
+        self.timeout = 1        # UDP - how many seconds to wait for each ip
         self.port = port
         self.arp_pass = 0
         self.old = []
@@ -50,6 +50,8 @@ class FindMyPIClient:
                 stderr=subprocess.STDOUT).decode("utf-8")
         except subprocess.CalledProcessError as e:
             nmap_output = e.output.decode("utf-8")
+        except FileNotFoundError:
+            print('Could not run nmap.  Is it installed?')
 
     def _run_arp(self):
         arp = ['arp','-e']
@@ -58,6 +60,10 @@ class FindMyPIClient:
                 stderr=subprocess.STDOUT).decode("utf-8")
         except subprocess.CalledProcessError as e:
             output = e.output.decode("utf-8")
+        except FileNotFoundError:
+            output = ''
+            print('Could not run arp.  Is it installed?')
+
         return output
 
     def get_list_from_mac(self):
@@ -82,6 +88,8 @@ class FindMyPIClient:
                 item = [ip, mac, model]
                 pi_list.append(item)
 
+        # if the list of PIs is shorter than the last scan, don't remove PIs
+        # immediately, make sure they don't appear on two consecutive scans
         if len(pi_list) < len(self.old) and not self.degrade:
             self.degrade = True
             pi_list = []
