@@ -7,14 +7,19 @@ import socket
 import threading
 import time
 import queue
+import subprocess
+import re
 
 class FindMyPIClient:
 
-    def __init__(self, port):
+    def __init__(self, port=8888):
         self.ip_prefix = self._get_ip_prefix()
         self.max_threads = 255  # max number of threads to scan network
         self.timeout = 1        # how many seconds to wait for each ip
         self.port = port
+        self.arp_pass = 0
+        self.old = []
+        self.degrade = False
 
     def _get_ip_prefix(self):
         # Gets the client's IP prefix
@@ -29,6 +34,66 @@ class FindMyPIClient:
             s.close()
         IP_prefix = "{}.{}.{}.".format(IP[0],IP[1],IP[2])
         return IP_prefix
+
+    def _get_model_by_mac(self, mac_addr):
+        if 'dc:a6:32:' in mac_addr.lower():
+            return 'Raspberry PI 4B or newer'
+        elif 'b8:27:eb:' in mac_addr.lower():
+            return 'Raspberry PI 3B+ or older'
+        else:
+            return ''
+
+    def _run_nmap(self):
+        nmap = ['nmap','-F',self.ip_prefix+"0/24"]
+        try:
+            nmap_output = subprocess.check_output(nmap,
+                stderr=subprocess.STDOUT).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            nmap_output = e.output.decode("utf-8")
+
+    def _run_arp(self):
+        arp = ['arp','-e']
+        try:
+            output = subprocess.check_output(arp,
+                stderr=subprocess.STDOUT).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            output = e.output.decode("utf-8")
+        return output
+
+    def get_list_from_mac(self):
+        # scans using nmap / arp to look at mac address
+        pi_list = []
+
+        if self.arp_pass % 5 == 0:
+            self._run_nmap()
+            output = self._run_arp().splitlines()
+        self.arp_pass += 1
+
+        output = self._run_arp().splitlines()
+        for line in output:
+            results = line.split()
+            ip = results[0]
+            mac = ''
+            for i in range(len(results)):
+                if results[i].count(':') == 5:
+                    mac = results[i]
+            model = self._get_model_by_mac(mac)
+            if ':' in mac and model != '':
+                item = [ip, mac, model]
+                pi_list.append(item)
+
+        if len(pi_list) < len(self.old) and not self.degrade:
+            self.degrade = True
+            pi_list = []
+            for i in range(len(self.old)):
+                pi_list.append(self.old[i])
+        else:
+            self.old = []
+            for i in range(len(pi_list)):
+                self.old.append(pi_list[i])
+            self.degrade = False
+
+        return pi_list
 
     def _scan(self, ip_queue, results):
         # Scans an IP from the queue and checks if it is a PI
@@ -61,7 +126,7 @@ class FindMyPIClient:
                 pass
         sock.close()
 
-    def get_list(self):
+    def get_list_from_server(self):
         # Starts 'max_threads' number of threads to search for PIs
         self.ip_prefix = self._get_ip_prefix()
         ip_queue = queue.Queue()
@@ -97,15 +162,20 @@ class FindMyPIClient:
 class FindMyPITreeView (Gtk.TreeView):
     # Gtk.Treeview that contains a list of discovered PIs, and coninually
     # updates the list, and allows manual updating of list.
-    def __init__(self, port, frequency=30):
+    def __init__(self, port=8888, method='server', frequency=30):
         super().__init__()
 
         self.port = port
-        self.findpi = FindMyPIClient(self.port)
+        self.findpi = FindMyPIClient(port=self.port)
         self.pi_liststore = Gtk.ListStore(str, str, str)
         self.set_model(self.pi_liststore)
         self.set_size_request(290,150)
-        self.fields = ['IP','Host Name','Model']
+        if method == 'mac':
+            self.use_arp = True
+            self.fields = ['IP Address','Mac Address','Presumed Model']
+        else:
+            self.use_arp = False
+            self.fields = ['IP Address','Host Name','Model Name']
         self.frequency = frequency
 
         for i, field in enumerate(self.fields):
@@ -120,6 +190,8 @@ class FindMyPITreeView (Gtk.TreeView):
             else:
                 col.set_min_width(130)
             self.append_column(col)
+
+        self.pi_liststore.append(['Searching','',''])
 
         self.thread = threading.Thread(target=self._search, daemon=True)
         self.thread.start()
@@ -152,13 +224,19 @@ class FindMyPITreeView (Gtk.TreeView):
         for pi in pi_list:
             self.pi_liststore.append(pi)
 
-    def get_list(self):
+    def get_list_from_server(self):
         # Returns list of connected PIs using FindMyPIClient
-        return self.findpi.get_list()
+        return self.findpi.get_list_from_server()
+
+    def get_list_from_mac(self):
+        return self.findpi.get_list_from_mac()
 
     def refresh_list(self):
         # Refresh the treeview.  Can be called manually
-        pi_list = self.findpi.get_list()
+        if self.use_arp:
+            pi_list = self.findpi.get_list_from_mac()
+        else:
+            pi_list = self.findpi.get_list_from_server()
         GLib.idle_add(self._update_list,pi_list)
 
     def get_value_at_col(self,column):
@@ -169,4 +247,5 @@ class FindMyPITreeView (Gtk.TreeView):
         if tree_iter != None:
             value = model.get_value(tree_iter,column)
         return value
+
 
